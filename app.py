@@ -256,7 +256,7 @@ class WebCrawler:
 	def get_domains_needing_update(self, results):
 		"""Get list of all domains that need updating."""
 		domains_to_update = set()
-		for domain, data in results.items():
+		for domain in self.domains_found:
 			if self.needs_update(domain, results):
 				domains_to_update.add(domain)
 		return domains_to_update
@@ -317,11 +317,13 @@ class WebCrawler:
 		async with aiofiles.open(self.output_file, 'w') as f:
 			await f.write('')
 
-		# Load existing results or create new file
+		# Initialize domains_found from existing results
 		try:
 			async with aiofiles.open(self.results_file, 'r') as f:
 				content = await f.read()
 				all_results = json.loads(content) if content else {}
+				# Add all previously discovered domains to domains_found
+				self.domains_found.update(all_results.keys())
 		except (FileNotFoundError, json.JSONDecodeError):
 			all_results = {}
 			async with aiofiles.open(self.results_file, 'w') as f:
@@ -341,13 +343,18 @@ class WebCrawler:
 					print(f'\nFound {len(domains_to_update)} domains needing update')
 					for domain in domains_to_update:
 						print(f'Crawling domain: {domain}')
+						# Reset visited_urls for each domain crawl
+						self.visited_urls.clear()
 						await self.crawl_domain(session, domain)
 						# Reload results after each domain to get latest data
 						async with aiofiles.open(self.results_file, 'r') as f:
 							content = await f.read()
 							all_results = json.loads(content) if content else {}
+					print(f'Completed updating {len(domains_to_update)} domains')
 				else:
 					print('\nNo domains need updating at this time')
+					print(f'Total domains tracked: {len(all_results)}')
+					print(f'Total domains found: {len(self.domains_found)}')
 
 			# Wait for an hour before checking again
 			print('\nWaiting 1 hour before next check...')
@@ -355,12 +362,12 @@ class WebCrawler:
 
 def parse_arguments():
 	parser = argparse.ArgumentParser(description='Pardosa - Web Platform Fingerprinting Crawler')
-	parser.add_argument('--url', default='https://builtwith.com',
-					help='Starting URL for the crawler (default: https://builtwith.com)')
-	parser.add_argument('--depth', type=int, default=3,
-					help='Maximum crawl depth (default: 3)')
-	parser.add_argument('--concurrent', type=int, default=20,
-					help='Maximum concurrent requests (default: 20)')
+	parser.add_argument('--url', default='https://wordpress.org',
+					help='Starting URL for the crawler (default: https://wordpress.org)')
+	parser.add_argument('--depth', type=int, default=1,
+					help='Maximum crawl depth (default: 1)')
+	parser.add_argument('--concurrent', type=int, default=10,
+					help='Maximum concurrent requests (default: 10)')
 	return parser.parse_args()
 
 def main():
