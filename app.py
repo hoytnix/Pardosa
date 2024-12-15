@@ -124,9 +124,10 @@ class ContactFinder:
 			return None
 
 class WebCrawler:
-    def __init__(self, max_depth=1, max_concurrent=10, rate_limit_kbps=1024, data_dir='data'):
+    def __init__(self, max_depth=1, max_concurrent=10, rate_limit_kbps=1024, timeout=5, data_dir='data'):
         self.max_depth = max_depth
         self.max_concurrent = max_concurrent
+        self.timeout = timeout
         self.visited_urls = set()
         self.domains_found = set()
         self.domains_to_crawl = set()
@@ -137,10 +138,9 @@ class WebCrawler:
         self.file_lock = asyncio.Lock()
         self.contact_finder = ContactFinder()
         self.rate_limiter = RateLimiter(rate_limit_kbps)
-        os.makedirs(data_dir, exist_ok=True)  # Create data directory if it doesn't exist
+        os.makedirs(data_dir, exist_ok=True)
 
     def get_domain_file_path(self, domain):
-        """Generate a safe file path for a domain."""
         safe_filename = domain.replace(':', '_').replace('/', '_')
         return os.path.join(self.data_dir, f'{safe_filename}.json')
 
@@ -226,13 +226,14 @@ class WebCrawler:
 
         try:
             async with self.semaphore:
-                async with session.get(url) as response:
+                # Use the configured timeout
+                timeout = aiohttp.ClientTimeout(total=self.timeout)
+                async with session.get(url, timeout=timeout) as response:
                     if response.status == 200:
                         content_type = response.headers.get('Content-Type', '').lower()
                         if 'text/html' not in content_type:
                             return None, None
                         
-                        # Read content in chunks to apply rate limiting
                         chunks = []
                         async for chunk in response.content.iter_chunked(8192):
                             await self.rate_limiter.consume(len(chunk))
@@ -241,6 +242,9 @@ class WebCrawler:
                         html = b''.join(chunks).decode()
                         headers = dict(response.headers)
                         return html, headers
+            return None, None
+        except asyncio.TimeoutError:
+            print(f'Timeout fetching {url}: Request took longer than {self.timeout} seconds')
             return None, None
         except Exception as e:
             print(f'Error fetching {url}: {str(e)}')
@@ -410,6 +414,8 @@ def parse_arguments():
                     help='Maximum concurrent requests (default: 10)')
     parser.add_argument('--rate-limit', type=int, default=1024,
                     help='Rate limit in Kbps (default: 1024)')
+    parser.add_argument('--timeout', type=int, default=5,
+                    help='Request timeout in seconds (default: 5)')
     return parser.parse_args()
 
 def main():
@@ -417,7 +423,8 @@ def main():
     crawler = WebCrawler(
         max_depth=args.depth,
         max_concurrent=args.concurrent,
-        rate_limit_kbps=args.rate_limit
+        rate_limit_kbps=args.rate_limit,
+        timeout=args.timeout
     )
 
     async def run_crawler():
