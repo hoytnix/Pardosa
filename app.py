@@ -130,6 +130,14 @@ class WebCrawler:
         self.rate_limiter = RateLimiter(rate_limit_kbps)
         os.makedirs(data_dir, exist_ok=True)
 
+    def get_domains_needing_update(self, results):
+        """Get list of all domains that need updating."""
+        domains_to_update = set()
+        for domain in self.domains_found:
+            if self.needs_update(domain, results):
+                domains_to_update.add(domain)
+        return domains_to_update
+
     def detect_platform(self, html, url, headers):
         platforms = []
     
