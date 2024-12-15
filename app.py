@@ -228,7 +228,7 @@ class WebCrawler:
         return urlparse(url).netloc
 
     async def fingerprint_domain(self, session, domain):
-        \"\"\"Asynchronous domain fingerprinting.\"\"\"
+        """Asynchronous domain fingerprinting."""
         try:
             start_url = f'https://{domain}'
             html, headers = await self.fetch_url(session, start_url)
