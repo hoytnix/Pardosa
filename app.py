@@ -4,6 +4,7 @@ import aiofiles
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from collections import deque, defaultdict
+import argparse
 import json
 import re
 from datetime import datetime
@@ -233,12 +234,47 @@ class WebCrawler:
 
 		return self.domains_found, self.platform_results
 
+import argparse
+
+def parse_arguments():
+	# Create argument parser
+	parser = argparse.ArgumentParser(description='Pardosa - Web Platform Fingerprinting Crawler')
+
+	# Add arguments
+	parser.add_argument(
+		'--url',
+		default='https://wordpress.org',
+		help='Starting URL for the crawler (default: https://wordpress.org)'
+	)
+
+	parser.add_argument(
+		'--depth',
+		type=int,
+		default=1,
+		help='Maximum crawl depth (default: 1)'
+	)
+
+	parser.add_argument(
+		'--concurrent',
+		type=int,
+		default=10,
+		help='Maximum concurrent requests (default: 10)'
+	)
+
+	return parser.parse_args()
+
 def main():
-	start_url = 'https://builtwith.com'  # Replace with your starting URL
-	crawler = WebCrawler(max_depth=2, max_concurrent=10)
+	# Parse command line arguments
+	args = parse_arguments()
+
+	# Initialize crawler with command line parameters
+	crawler = WebCrawler(
+		max_depth=args.depth,
+		max_concurrent=args.concurrent
+	)
 
 	async def run_crawler():
-		domains, platforms = await crawler.start_crawl(start_url)
+		domains, platforms = await crawler.start_crawl(args.url)
 		print(f'\nCrawling completed!')
 		print(f'Total unique domains found: {len(domains)}')
 		print(f'Total domains crawled: {len(crawler.domains_crawled)}')
