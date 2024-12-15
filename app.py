@@ -1,4 +1,4 @@
-zimport asyncio
+import asyncio
 import aiohttp
 import aiofiles
 from bs4 import BeautifulSoup
