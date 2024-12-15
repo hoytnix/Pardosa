@@ -8,6 +8,31 @@ import json
 import re
 from datetime import datetime, timedelta
 import argparse
+import time
+
+class RateLimiter:
+    def __init__(self, rate_limit_kbps):
+        self.rate_limit_bytes = rate_limit_kbps * 1024 / 8  # Convert Kbps to bytes per second
+        self.last_check = time.time()
+        self.bytes_consumed = 0
+
+    async def consume(self, bytes_count):
+        current_time = time.time()
+        time_passed = current_time - self.last_check
+        
+        if time_passed >= 1.0:
+            # Reset counter if a second has passed
+            self.bytes_consumed = 0
+            self.last_check = current_time
+        else:
+            if self.bytes_consumed >= self.rate_limit_bytes:
+                # Wait until the next second if we've exceeded our rate limit
+                sleep_time = 1.0 - time_passed
+                await asyncio.sleep(sleep_time)
+                self.bytes_consumed = 0
+                self.last_check = time.time()
+        
+        self.bytes_consumed += bytes_count
 
 class ContactFinder:
 	def __init__(self):
@@ -98,7 +123,7 @@ class ContactFinder:
 			return None
 
 class WebCrawler:
-	def __init__(self, max_depth=1, max_concurrent=10, output_file='discovered_domains.txt', results_file='fingerprint_results.json'):
+	def __init__(self, max_depth=1, max_concurrent=10, rate_limit_kbps=1024, output_file='discovered_domains.txt', results_file='fingerprint_results.json'):
 		self.max_depth = max_depth
 		self.max_concurrent = max_concurrent
 		self.visited_urls = set()
@@ -111,6 +136,7 @@ class WebCrawler:
 		self.results_file = results_file
 		self.file_lock = asyncio.Lock()
 		self.contact_finder = ContactFinder()
+		self.rate_limiter = RateLimiter(rate_limit_kbps)
 
 	def is_valid_http_url(self, url):
 		try:
@@ -205,7 +231,13 @@ class WebCrawler:
 						if 'text/html' not in content_type:
 							return None, None
 						
-						html = await response.text()
+						# Read content in chunks to apply rate limiting
+						chunks = []
+						async for chunk in response.content.iter_chunked(8192):
+							await self.rate_limiter.consume(len(chunk))
+							chunks.append(chunk)
+						
+						html = b''.join(chunks).decode()
 						headers = dict(response.headers)
 						return html, headers
 			return None, None
@@ -368,11 +400,17 @@ def parse_arguments():
 					help='Maximum crawl depth (default: 1)')
 	parser.add_argument('--concurrent', type=int, default=10,
 					help='Maximum concurrent requests (default: 10)')
+	parser.add_argument('--rate-limit', type=int, default=1024,
+					help='Rate limit in Kbps (default: 1024)')
 	return parser.parse_args()
 
 def main():
 	args = parse_arguments()
-	crawler = WebCrawler(max_depth=args.depth, max_concurrent=args.concurrent)
+	crawler = WebCrawler(
+		max_depth=args.depth,
+		max_concurrent=args.concurrent,
+		rate_limit_kbps=args.rate_limit
+	)
 
 	async def run_crawler():
 		try:
