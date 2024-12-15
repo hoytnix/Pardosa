@@ -6,9 +6,10 @@ from urllib.parse import urljoin, urlparse
 from collections import deque, defaultdict
 import json
 import re
+from datetime import datetime
 
 class WebCrawler:
-	def __init__(self, max_depth=2, max_concurrent=10, output_file='discovered_domains.txt'):
+	def __init__(self, max_depth=2, max_concurrent=10, output_file='discovered_domains.txt', results_file='fingerprint_results.json'):
 		self.max_depth = max_depth
 		self.max_concurrent = max_concurrent
 		self.visited_urls = set()
@@ -18,6 +19,7 @@ class WebCrawler:
 		self.platform_results = {}
 		self.semaphore = asyncio.Semaphore(max_concurrent)
 		self.output_file = output_file
+		self.results_file = results_file
 		self.file_lock = asyncio.Lock()
 
 	def is_valid_http_url(self, url):
@@ -75,6 +77,31 @@ class WebCrawler:
 				await f.write(f'{domain}\n')
 				await f.flush()
 
+	async def write_fingerprint(self, domain, platforms, status='active'):
+		async with self.file_lock:
+			try:
+				# Read existing results
+				try:
+					async with aiofiles.open(self.results_file, 'r') as f:
+						content = await f.read()
+						results = json.loads(content) if content else {}
+				except (FileNotFoundError, json.JSONDecodeError):
+					results = {}
+
+				# Update results
+				results[domain] = {
+					'platforms': platforms,
+					'status': status,
+					'last_checked': datetime.now().isoformat()
+				}
+
+				# Write updated results
+				async with aiofiles.open(self.results_file, 'w') as f:
+					await f.write(json.dumps(results, indent=4))
+					await f.flush()
+			except Exception as e:
+				print(f'Error writing fingerprint for {domain}: {str(e)}')
+
 	async def fetch_url(self, session, url):
 		if not self.is_html_url(url):
 			return None, None
@@ -94,6 +121,34 @@ class WebCrawler:
 		except Exception as e:
 			print(f'Error fetching {url}: {str(e)}')
 			return None, None
+
+	async def fingerprint_domain(self, session, domain):
+		url = f'https://{domain}'
+		try:
+			html, headers = await self.fetch_url(session, url)
+			if html:
+				platforms = self.detect_platform(html, url, headers)
+				await self.write_fingerprint(domain, platforms)
+				return platforms
+			return []
+		except Exception as e:
+			# Try with www. prefix if direct domain fails
+			if not domain.startswith('www.'):
+				try:
+					www_url = f'https://www.{domain}'
+					html, headers = await self.fetch_url(session, www_url)
+					if html:
+						platforms = self.detect_platform(html, www_url, headers)
+						await self.write_fingerprint(domain, platforms)
+						return platforms
+					return []
+				except Exception as e:
+					print(f'Error fingerprinting www.{domain}: {str(e)}')
+				await self.write_fingerprint(domain, [], status='error')
+				return []
+			print(f'Error fingerprinting {domain}: {str(e)}')
+			await self.write_fingerprint(domain, [], status='error')
+			return []
 
 	def extract_links(self, html, base_url):
 		links = set()
@@ -125,13 +180,13 @@ class WebCrawler:
 			self.domains_found.add(domain)
 			self.domains_to_crawl.add(domain)
 			await self.write_domain(domain)
-
-		html, headers = await self.fetch_url(session, url)
-		if html:
-			platforms = self.detect_platform(html, url, headers)
+			# Immediately fingerprint new domain
+			platforms = await self.fingerprint_domain(session, domain)
 			if platforms:
 				self.platform_results[domain] = platforms
 
+		html, headers = await self.fetch_url(session, url)
+		if html:
 			links = self.extract_links(html, url)
 			tasks = []
 			for link in links:
@@ -159,9 +214,11 @@ class WebCrawler:
 					print(f'Error crawling www.{domain}: {str(e)}')
 
 	async def start_crawl(self, start_url):
-		# Clear the output file at the start of crawling
+		# Clear the output files at the start of crawling
 		async with aiofiles.open(self.output_file, 'w') as f:
 			await f.write('')
+		async with aiofiles.open(self.results_file, 'w') as f:
+			await f.write('{}')
 
 		async with aiohttp.ClientSession() as session:
 			# First crawl the start URL
@@ -174,11 +231,7 @@ class WebCrawler:
 				print(f'Crawling discovered domain: {domain}')
 				await self.crawl_domain(session, domain)
 
-		# Write final results to JSON file
-		await self.write_results_to_file()
 		return self.domains_found, self.platform_results
-
-
 
 def main():
 	start_url = 'https://builtwith.com'  # Replace with your starting URL
@@ -192,7 +245,7 @@ def main():
 		print('\nPlatform Detection Results:')
 		for domain, detected_platforms in platforms.items():
 			print(f'{domain}: {", ".join(detected_platforms)}')
-		print('\nFull results written to crawl_results.json')
+		print('\nFull results written to fingerprint_results.json')
 
 	asyncio.run(run_crawler())
 
