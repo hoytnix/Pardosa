@@ -130,6 +130,23 @@ class WebCrawler:
         self.rate_limiter = RateLimiter(rate_limit_kbps)
         os.makedirs(data_dir, exist_ok=True)
 
+    def detect_platform(self, html, url, headers):
+        platforms = []
+    
+        if any(x in html for x in ['wp-content', 'wp-includes', 'wp-admin']):
+            platforms.append('WordPress')
+    
+        if 'Shopify.theme' in html or '.myshopify.com' in url:
+            platforms.append('Shopify')
+    
+        if 'cf2.com' in url or 'clickfunnels2.com' in url or 'data-cf2-page' in html:
+            platforms.append('ClickFunnels 2.0')
+    
+        if '.kajabi-content' in html or 'kajabi-assets' in html or '.mykajabi.com' in url:
+            platforms.append('Kajabi')
+    
+        return platforms
+    
     def get_domain_file_path(self, domain):
         safe_filename = domain.replace(':', '_').replace('/', '_')
         return os.path.join(self.data_dir, f'{safe_filename}.json')
