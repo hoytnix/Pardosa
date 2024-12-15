@@ -13,6 +13,8 @@ class WebCrawler:
 		self.max_concurrent = max_concurrent
 		self.visited_urls = set()
 		self.domains_found = set()
+		self.domains_to_crawl = set()
+		self.domains_crawled = set()
 		self.platform_results = {}
 		self.semaphore = asyncio.Semaphore(max_concurrent)
 		self.output_file = output_file
@@ -121,6 +123,7 @@ class WebCrawler:
 		
 		if domain not in self.domains_found:
 			self.domains_found.add(domain)
+			self.domains_to_crawl.add(domain)
 			await self.write_domain(domain)
 
 		html, headers = await self.fetch_url(session, url)
@@ -137,14 +140,23 @@ class WebCrawler:
 			if tasks:
 				await asyncio.gather(*tasks)
 
-	async def write_results_to_file(self, filename='crawl_results.json'):
-		results = {
-			'total_domains': len(self.domains_found),
-			'all_domains': sorted(list(self.domains_found)),
-			'platform_detection': self.platform_results
-		}
-		async with aiofiles.open(filename, 'w') as f:
-			await f.write(json.dumps(results, indent=4))
+	async def crawl_domain(self, session, domain):
+		if domain in self.domains_crawled:
+			return
+		
+		self.domains_crawled.add(domain)
+		start_url = f'https://{domain}'
+		try:
+			await self.crawl_url(session, start_url, 0)
+		except Exception as e:
+			print(f'Error crawling domain {domain}: {str(e)}')
+			# Try with www. prefix if the direct domain fails
+			if not domain.startswith('www.'):
+				try:
+					www_url = f'https://www.{domain}'
+					await self.crawl_url(session, www_url, 0)
+				except Exception as e:
+					print(f'Error crawling www.{domain}: {str(e)}')
 
 	async def start_crawl(self, start_url):
 		# Clear the output file at the start of crawling
@@ -152,19 +164,31 @@ class WebCrawler:
 			await f.write('')
 
 		async with aiohttp.ClientSession() as session:
+			# First crawl the start URL
+			print(f'Starting initial crawl of {start_url}')
 			await self.crawl_url(session, start_url, 0)
-		
+			
+			# Then crawl all discovered domains
+			while self.domains_to_crawl - self.domains_crawled:
+				domain = (self.domains_to_crawl - self.domains_crawled).pop()
+				print(f'Crawling discovered domain: {domain}')
+				await self.crawl_domain(session, domain)
+
 		# Write final results to JSON file
 		await self.write_results_to_file()
 		return self.domains_found, self.platform_results
 
+
+
 def main():
 	start_url = 'https://builtwith.com'  # Replace with your starting URL
-	crawler = WebCrawler(max_depth=3, max_concurrent=20)
+	crawler = WebCrawler(max_depth=2, max_concurrent=10)
 
 	async def run_crawler():
 		domains, platforms = await crawler.start_crawl(start_url)
-		print(f'Found {len(domains)} unique domains')
+		print(f'\nCrawling completed!')
+		print(f'Total unique domains found: {len(domains)}')
+		print(f'Total domains crawled: {len(crawler.domains_crawled)}')
 		print('\nPlatform Detection Results:')
 		for domain, detected_platforms in platforms.items():
 			print(f'{domain}: {", ".join(detected_platforms)}')
