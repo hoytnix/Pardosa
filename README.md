@@ -95,4 +95,5 @@ another-domain.com
 ## License
 
 Copyright (C) 2024 & Beyond, You'll Click
+
 Coded by [www.youll.click](www.youll.click)
