@@ -361,44 +361,44 @@ class WebCrawler:
                 except Exception as e:
                     print(f'Error crawling www.{domain}: {str(e)}')
 
-async def start_continuous_crawl(self, start_url):
-    # Initialize domains_found from existing files
-    all_results = self.get_all_domain_results()
-    self.domains_found.update(all_results.keys())
+    async def start_continuous_crawl(self, start_url):
+        # Initialize domains_found from existing files
+        all_results = self.get_all_domain_results()
+        self.domains_found.update(all_results.keys())
 
-    while True:  # Continuous crawling loop
-        async with aiohttp.ClientSession() as session:
-            # First, crawl the start URL if it hasn't been crawled recently
-            start_domain = self.get_domain(start_url)
-            if self.needs_update(start_domain, all_results):
-                print(f'\nStarting crawl of {start_url}')
-                await self.crawl_url(session, start_url, 0)
-                # Reload results after initial crawl
-                all_results = self.get_all_domain_results()
-
-            # Then process all domains that need updating
-            domains_to_update = self.get_domains_needing_update(all_results)
-            if domains_to_update:
-                print(f'\nFound {len(domains_to_update)} domains needing update')
-                for domain in domains_to_update:
-                    print(f'Crawling domain: {domain}')
-                    self.visited_urls.clear()
-                    # Reset domains_found for each domain crawl to discover new links
-                    self.domains_found = {domain}
-                    await self.crawl_domain(session, domain)
-                    # Add newly discovered domains to the main set
-                    self.domains_found.update(all_results.keys())
-                    # Reload all results
+        while True:  # Continuous crawling loop
+            async with aiohttp.ClientSession() as session:
+                # First, crawl the start URL if it hasn't been crawled recently
+                start_domain = self.get_domain(start_url)
+                if self.needs_update(start_domain, all_results):
+                    print(f'\nStarting crawl of {start_url}')
+                    await self.crawl_url(session, start_url, 0)
+                    # Reload results after initial crawl
                     all_results = self.get_all_domain_results()
-                print(f'Completed updating {len(domains_to_update)} domains')
-            else:
-                print('\nNo domains need updating at this time')
-                print(f'Total domains tracked: {len(all_results)}')
-                print(f'Total domains found: {len(self.domains_found)}')
 
-            # Wait for an hour before checking again
-            print('\nWaiting 1 hour before next check...')
-            await asyncio.sleep(3600)
+                # Then process all domains that need updating
+                domains_to_update = self.get_domains_needing_update(all_results)
+                if domains_to_update:
+                    print(f'\nFound {len(domains_to_update)} domains needing update')
+                    for domain in domains_to_update:
+                        print(f'Crawling domain: {domain}')
+                        self.visited_urls.clear()
+                        # Reset domains_found for each domain crawl to discover new links
+                        self.domains_found = {domain}
+                        await self.crawl_domain(session, domain)
+                        # Add newly discovered domains to the main set
+                        self.domains_found.update(all_results.keys())
+                        # Reload all results
+                        all_results = self.get_all_domain_results()
+                    print(f'Completed updating {len(domains_to_update)} domains')
+                else:
+                    print('\nNo domains need updating at this time')
+                    print(f'Total domains tracked: {len(all_results)}')
+                    print(f'Total domains found: {len(self.domains_found)}')
+
+                # Wait for an hour before checking again
+                print('\nWaiting 1 hour before next check...')
+                await asyncio.sleep(3600)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Pardosa - Web Platform Fingerprinting Crawler')
