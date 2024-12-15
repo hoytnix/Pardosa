@@ -355,12 +355,12 @@ class WebCrawler:
 
 def parse_arguments():
 	parser = argparse.ArgumentParser(description='Pardosa - Web Platform Fingerprinting Crawler')
-	parser.add_argument('--url', default='https://wordpress.org',
-					help='Starting URL for the crawler (default: https://wordpress.org)')
-	parser.add_argument('--depth', type=int, default=1,
-					help='Maximum crawl depth (default: 1)')
-	parser.add_argument('--concurrent', type=int, default=10,
-					help='Maximum concurrent requests (default: 10)')
+	parser.add_argument('--url', default='https://builtwith.com',
+					help='Starting URL for the crawler (default: https://builtwith.com)')
+	parser.add_argument('--depth', type=int, default=5,
+					help='Maximum crawl depth (default: 5)')
+	parser.add_argument('--concurrent', type=int, default=20,
+					help='Maximum concurrent requests (default: 20)')
 	return parser.parse_args()
 
 def main():
