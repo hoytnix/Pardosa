@@ -1,26 +1,68 @@
-This is the complete, integrated code that combines all the requested features:
+# Pardosa
 
-1. Asynchronous web crawling with concurrent requests
-2. HTML-only crawling with proper content-type checking
-3. HTTP/HTTPS URL validation
-4. Immediate domain writing to file as they're discovered
-5. Platform detection for WordPress, Shopify, ClickFunnels 2.0, and Kajabi
-6. Comprehensive results output in JSON format
+This is an asynchronous web crawler built in Python that discovers and fingerprints web platforms. It identifies technologies used by websites, starting from a specified URL and exploring links up to two levels deep. The current configuration starts the crawl from [https://builtwith.com](https://builtwith.com).
 
-To use this code:
+## Features
 
-1. Install required packages:
+- **Asynchronous Crawling**: Utilizes `asyncio` and `aiohttp` for non-blocking, concurrent requests.
+- **Platform Detection**: Identifies popular web platforms such as WordPress, Shopify, ClickFunnels 2.0, and Kajabi based on typical indicators in webpage content.
+- **HTML-Only Crawling**: Filters and processes only HTML documents, ignoring resources like images, scripts, and stylesheets.
+- **Domain Discovery**: Collects unique Fully Qualified Domain Names (FQDNs) during the crawl and writes them to a file.
+- **Immediate Fingerprinting**: Newly discovered domains are fingerprinted in real-time, and results are saved immediately.
+- **Error Handling**: Robust error management, including retries with `www` prefixes and logging.
+
+## Requirements
+
+- Python 3.7+
+- Packages:
+  - `aiohttp`
+  - `aiofiles`
+  - `beautifulsoup4`
+
+Install the required packages using pip:
+
 ```bash
 pip install aiohttp aiofiles beautifulsoup4
 ```
 
-2. Replace the start_url in main() with your target URL
+## Usage
 
-3. Run the script
+1. **Clone the repository**:
 
-The crawler will:
-- Write domains to 'discovered_domains.txt' as they're found
-- Write complete results including platform detection to 'crawl_results.json'
-- Show progress and results in the console
+   ```bash
+   git clone <repository-url>
+   cd <repository-directory>
+   ```
 
-The code includes proper error handling, thread-safe file operations, and efficient resource usage through connection pooling and concurrent requests limiting.
+2. **Run the crawler**:
+
+   Execute the main script:
+
+   ```bash
+   python crawler.py
+   ```
+
+   The crawler will start from `https://builtwith.com` and output results to `discovered_domains.txt` and `fingerprint_results.json`.
+
+3. **Review Results**:
+   - `discovered_domains.txt`: A list of discovered domains.
+   - `fingerprint_results.json`: Detailed fingerprint data of platforms detected on each domain.
+
+## Configuration
+
+- **Start URL**: Change the `start_url` variable in `main()` to the desired starting point.
+- **Max Depth**: Adjust `max_depth` in the `WebCrawler` class to control crawl depth.
+- **Concurrency**: Set `max_concurrent` to alter the number of simultaneous requests.
+
+## Limitations
+
+- Ensure compliance with the `robots.txt` and terms of service of websites.
+- Consider implementing rate limiting to avoid potential IP blocks due to too many rapid requests.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Contribution
+
+Feel free to submit issues, fork the repository, and make pull requests for any enhancements or fixes.
