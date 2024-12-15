@@ -92,9 +92,7 @@ another-domain.com
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## Legal Considerations
+## License
 
-- Respect robots.txt files
-- Implement appropriate rate limiting
-- Check terms of service before crawling sites
-- Use responsibly and ethically
+Copyright (C) 2024 & Beyond, You'll Click
+Coded by [www.youll.click](www.youll.click)
