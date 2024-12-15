@@ -1,4 +1,4 @@
-import asyncio
+zimport asyncio
 import aiohttp
 import aiofiles
 from bs4 import BeautifulSoup
@@ -133,6 +133,24 @@ class WebCrawler:
         self.contact_finder = ContactFinder()
         self.rate_limiter = RateLimiter(rate_limit_kbps)
         os.makedirs(data_dir, exist_ok=True)
+
+    async def crawl_domain(self, session, domain):
+        if domain in self.domains_crawled:
+            return
+        
+        self.domains_crawled.add(domain)
+        start_url = f'https://{domain}'
+        try:
+            await self.crawl_url(session, start_url, 0)
+        except Exception as e:
+            print(f'Error crawling domain {domain}: {str(e)}')
+            # Try with www. prefix if the direct domain fails
+            if not domain.startswith('www.'):
+                try:
+                    www_url = f'https://www.{domain}'
+                    await self.crawl_url(session, www_url, 0)
+                except Exception as e:
+                    print(f'Error crawling www.{domain}: {str(e)}')
 
     def get_domains_needing_update(self, results):
         """Get list of all domains that need updating."""
