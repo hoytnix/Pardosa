@@ -34,24 +34,28 @@ class RateLimiter:
 
 class ContactFinder:
     def __init__(self):
-        self.email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}'
+        # Email pattern
+        self.email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
         
+        # Phone patterns for various formats
         self.phone_patterns = [
-            r'\\+?\\d{1,3}[-.\\s]?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}',
-            r'\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}',
-            r'\\d{4}[-.\\s]?\\d{3}[-.\\s]?\\d{3}'
+            r'\+?\d{1,3}[-. ]?\(?\d{3}\)?[-. ]?\d{3}[-. ]?\d{4}',  # International
+            r'\(?\d{3}\)?[-. ]?\d{3}[-. ]?\d{4}',  # US/Canada
+            r'\d{4}[-. ]?\d{3}[-. ]?\d{3}'  # Alternative format
         ]
         
+        # Organization name patterns
         self.org_patterns = [
-            r'(?i)about\\s+([\\w\\s&,.-]+(?:Inc\\.|LLC|Ltd\\.|Corp\\.|Corporation|Company|Co\\.|Limited))',
-            r'(?i)([\\w\\s&,.-]+(?:Inc\\.|LLC|Ltd\\.|Corp\\.|Corporation|Company|Co\\.|Limited))',
-            r'©\\s*\\d{4}\\s+([\\w\\s&,.-]+)'
+            r'(?i)about\s+([\w\s&,.-]+(?:Inc\.|LLC|Ltd\.|Corp\.|Corporation|Company|Co\.|Limited))',
+            r'(?i)([\w\s&,.-]+(?:Inc\.|LLC|Ltd\.|Corp\.|Corporation|Company|Co\.|Limited))',
+            r'©\s*\d{4}\s+([\w\s&,.-]+)'
         ]
         
+        # Employee patterns
         self.employee_patterns = [
-            r'(?i)(?:CEO|CTO|CFO|founder|president|director):\\s*([\\w\\s.-]+)',
-            r'(?i)(?:team|staff|employee):\\s*([\\w\\s.-]+)',
-            r'(?i)contact\\s+([\\w\\s.-]+)\\s+at'
+            r'(?i)(?:CEO|CTO|CFO|founder|president|director):\s*([\w\s.-]+)',
+            r'(?i)(?:team|staff|employee):\s*([\w\s.-]+)',
+            r'(?i)contact\s+([\w\s.-]+)\s+at'
         ]
 
     def find_emails(self, text):
